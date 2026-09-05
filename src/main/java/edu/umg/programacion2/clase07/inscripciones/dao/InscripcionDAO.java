@@ -169,11 +169,39 @@ public class InscripcionDAO {
      * seleccionando columnas de `estudiantes` y filtrando por `c.nombre`.
      */
     public List<Estudiante> listarEstudiantesDeCurso(String nombreCurso) throws SQLException {
-        List<Estudiante> resultado = new ArrayList<>();
-        // TODO: completar.
+    	 List<Estudiante> resultado = new ArrayList<>();
 
-        return resultado;
+    	    String sql = "SELECT e.id, e.nombre, e.carnet "
+    	            + "FROM inscripciones i "
+    	            + "JOIN estudiantes e ON i.estudiante_id = e.id "
+    	            + "JOIN cursos c ON i.curso_id = c.id "
+    	            + "WHERE c.nombre = ?";
+
+    	    try (Connection conexion = DriverManager.getConnection(URL, USUARIO, PASSWORD);
+    	         PreparedStatement statement = conexion.prepareStatement(sql)) {
+
+    	        statement.setString(1, nombreCurso);
+
+    	        try (ResultSet data = statement.executeQuery()) {
+
+    	            while (data.next()) {
+    	                resultado.add(mapearEstudiante(data));
+    	            }
+    	        }
+    	    }
+
+    	    return resultado;
     }
+    
+    private Estudiante mapearEstudiante(ResultSet resultado) throws SQLException {
+
+        int id = resultado.getInt("id");
+        String nombre = resultado.getString("nombre");
+        String carnet = resultado.getString("carnet");
+
+        return new Estudiante(id, nombre, carnet);
+    }
+    
 
     /**
      * Calcula el promedio de notas de un estudiante (solo cursos que YA
@@ -198,8 +226,33 @@ public class InscripcionDAO {
      *    Optional.empty().
      */
     public Optional<Double> promedioDeEstudiante(String carnet) throws SQLException {
-        // TODO: completar (ver pistas arriba, especialmente el caso NULL).
-        return Optional.empty();
+    	 String sql = "SELECT AVG(i.nota) AS promedio "
+    	            + "FROM inscripciones i "
+    	            + "JOIN estudiantes e ON i.estudiante_id = e.id "
+    	            + "WHERE e.carnet = ?";
+
+    	    try (Connection conexion = DriverManager.getConnection(URL, USUARIO, PASSWORD);
+    	         PreparedStatement statement = conexion.prepareStatement(sql)) {
+
+    	        statement.setString(1, carnet);
+
+    	        try (ResultSet resultado = statement.executeQuery()) {
+
+    	            if (resultado.next()) {
+
+    	                Object promedio = resultado.getObject("promedio");
+
+    	                if (promedio == null) {
+    	                    return Optional.empty();
+    	                }
+
+    	                return Optional.of(((Number) promedio).doubleValue());
+    	            }
+    	        }
+    	    }
+
+    	    return Optional.empty();
+    	    
     }
 
     /**
@@ -225,7 +278,24 @@ public class InscripcionDAO {
      *    retorna Optional.empty() en ese caso.
      */
     public Optional<String> cursoConMasInscritos() throws SQLException {
-        // TODO: completar (ver pistas arriba).
+        String sql = "SELECT c.nombre, COUNT(*) AS total "
+                + "FROM inscripciones i "
+                + "JOIN cursos c ON i.curso_id = c.id "
+                + "GROUP BY c.nombre "
+                + "ORDER BY total DESC "
+                + "LIMIT 1";
+
+        try (Connection conexion = DriverManager.getConnection(URL, USUARIO, PASSWORD);
+             PreparedStatement statement = conexion.prepareStatement(sql);
+             ResultSet resultado = statement.executeQuery()) {
+
+            if (resultado.next()) {
+                return Optional.of(resultado.getString("nombre"));
+            }
+        }
+
         return Optional.empty();
+    	
+    	
     }
 }
